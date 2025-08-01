@@ -1,0 +1,68 @@
+name: CI checks
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - UAT
+      - release
+      - main
+
+jobs:
+  run-tests:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # O la versión que uses
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Paso para ejecutar tests, se adaptará según la rama
+      - name: Run specific tests based on branch
+        id: run_tests_step
+        run: |
+          if [[ "${{ github.base_ref }}" == "develop" ]]; then
+            # Aquí irá la lógica para detectar archivos modificados y lanzar tests específicos
+            echo "Detectando tests unitarios a ejecutar..."
+            # Obtiene los archivos modificados en el PR
+            files=$(git diff --name-only --diff-filter=AM ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | grep '.ts' | grep 'src/')
+
+            # Convierte las rutas de archivos de código a rutas de archivos de test
+            test_files=""
+            for file in $files; do
+              # Reemplaza src/ por test/ y .ts por .spec.ts
+              test_file=$(echo $file | sed 's/src/test/' | sed 's/\.ts$/\.spec\.ts/')
+              # Verifica si el archivo de test existe
+              if [ -f "$test_file" ]; then
+                test_files+="$test_file "
+              fi
+            done
+            
+            echo "Ejecutando tests unitarios..."
+            # Por ahora, una implementación simple. Más abajo explico la lógica avanzada.
+            npm test
+          elif [[ "${{ github.base_ref }}" == "UAT" ]]; then
+            echo "Ejecutando tests de integración..."
+            # Lógica para tests de integración
+            npm run test:integration # Asumiendo un script en tu package.json
+          else # release y main
+            echo "Ejecutando suite completa de tests..."
+            npm run test
+          fi
+
+      # Paso para la cobertura de código
+      - name: Check code coverage
+        run: |
+          COVERAGE=$(npx nyc report --reporter=text-summary | grep "Statements" | awk '{print $NF}' | cut -d'%' -f1)
+          echo "Cobertura actual: $COVERAGE%"
+          if (( $(echo "$COVERAGE < 75" | bc -l) )); then
+            echo "La cobertura de código (${COVERAGE}%) está por debajo del 75% requerido."
+            exit 1
+          fi
