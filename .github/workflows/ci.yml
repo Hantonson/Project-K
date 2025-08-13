@@ -9,7 +9,7 @@ on:
       - main
 
 jobs:
-  run-tests:
+  build:
     runs-on: ubuntu-latest
 
     steps:
@@ -19,45 +19,17 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20' # O la versión que uses
+          node-version: '22'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install
 
-      # Paso para ejecutar tests, se adaptará según la rama
-      - name: Run specific tests based on branch
-        id: run_tests_step
-        run: |
-          if [[ "${{ github.base_ref }}" == "develop" ]]; then
-            # Aquí irá la lógica para detectar archivos modificados y lanzar tests específicos
-            echo "Detectando tests unitarios a ejecutar..."
-            # Obtiene los archivos modificados en el PR
-            files=$(git diff --name-only --diff-filter=AM ${{ github.event.pull_request.base.sha }} ${{ github.event.pull_request.head.sha }} | grep '.ts' | grep 'src/')
+      - name: Fix Jest permission issues
+        run: chmod +x ./node_modules/.bin/jest
 
-            # Convierte las rutas de archivos de código a rutas de archivos de test
-            test_files=""
-            for file in $files; do
-              # Reemplaza src/ por test/ y .ts por .spec.ts
-              test_file=$(echo $file | sed 's/src/test/' | sed 's/\.ts$/\.spec\.ts/')
-              # Verifica si el archivo de test existe
-              if [ -f "$test_file" ]; then
-                test_files+="$test_file "
-              fi
-            done
-            
-            echo "Ejecutando tests unitarios..."
-            # Por ahora, una implementación simple. Más abajo explico la lógica avanzada.
-            npm test
-          elif [[ "${{ github.base_ref }}" == "UAT" ]]; then
-            echo "Ejecutando tests de integración..."
-            # Lógica para tests de integración
-            npm run test:integration # Asumiendo un script en tu package.json
-          else # release y main
-            echo "Ejecutando suite completa de tests..."
-            npm run test
-          fi
+      - name: Run all tests suites # Not extremely good but necessary on open source project
+        run: npm run test # Asumiendo un script de build en tu package.json
 
-      # Paso para la cobertura de código
       - name: Check code coverage
         run: |
           COVERAGE=$(npx nyc report --reporter=text-summary | grep "Statements" | awk '{print $NF}' | cut -d'%' -f1)
