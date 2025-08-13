@@ -33,8 +33,12 @@ jobs:
         run: npm run test # Asumiendo un script de build en tu package.json
         working-directory: api
 
-      - name: Check code coverage with Coactions
-        uses: coactions/coverage-reporter@v1
-        with:
-          path: api/coverage/lcov.info # Ruta al archivo de reporte generado por Jest
-          threshold: 75
+      - name: Check code coverage with nyc
+        run: |
+          COVERAGE=$(npx nyc report --reporter=text-summary | grep "Statements" | awk '{print $NF}' | cut -d'%' -f1)
+          echo "Cobertura actual: $COVERAGE%"
+          if (( $(echo "$COVERAGE < 75" | bc -l) )); then
+            echo "La cobertura de código (${COVERAGE}%) está por debajo del 75% requerido."
+            exit 1
+          fi
+        working-directory: api
