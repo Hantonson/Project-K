@@ -16,9 +16,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Enter api directory
-        run: cd api
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -26,12 +23,15 @@ jobs:
 
       - name: Install dependencies
         run: npm install
+        working-directory: api
 
       - name: Fix Jest permission issues
         run: chmod +x ./node_modules/.bin/jest
+        working-directory: api
 
       - name: Run all tests suites # Not extremely good but necessary on open source project
         run: npm run test # Asumiendo un script de build en tu package.json
+        working-directory: api
 
       - name: Check code coverage
         run: |
@@ -41,3 +41,4 @@ jobs:
             echo "La cobertura de código (${COVERAGE}%) está por debajo del 75% requerido."
             exit 1
           fi
+        working-directory: api
