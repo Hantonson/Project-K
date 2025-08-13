@@ -29,13 +29,17 @@ jobs:
         run: chmod +x ./node_modules/.bin/jest
         working-directory: api
 
+      - name: Install ubuntu dependencies for reading JSON reports
+        run: sudo apt-get update && sudo apt-get install -y jq
+
       - name: Run all tests suites # Not extremely good but necessary on open source project
-        run: npm run test # Asumiendo un script de build en tu package.json
+        run: npm run test:cov
         working-directory: api
 
-      - name: Check code coverage with nyc
+      - name: Check code coverage with jq
         run: |
-          COVERAGE=$(npx nyc report --reporter=text-summary | grep "Statements" | awk '{print $NF}' | cut -d'%' -f1)
+          COVERAGE=$(jq '.total.statements.pct' api/coverage/coverage-summary.json)
+
           echo "Cobertura actual: $COVERAGE%"
           if (( $(echo "$COVERAGE < 75" | bc -l) )); then
             echo "La cobertura de código (${COVERAGE}%) está por debajo del 75% requerido."
