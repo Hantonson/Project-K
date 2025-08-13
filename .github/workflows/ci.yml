@@ -1,0 +1,47 @@
+name: CI checks
+
+on:
+  pull_request:
+    branches:
+      - develop
+      - UAT
+      - release
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Install dependencies
+        run: npm install
+        working-directory: api
+
+      - name: Fix Jest permission issues
+        run: chmod +x ./node_modules/.bin/jest
+        working-directory: api
+
+      - name: Install ubuntu dependencies for reading JSON reports
+        run: sudo apt-get update && sudo apt-get install -y jq
+
+      - name: Run all tests suites # Not extremely good but necessary on open source project
+        run: npm run test:cov
+        working-directory: api
+
+      - name: Check code coverage with jq
+        run: |
+          COVERAGE=$(jq '.total.statements.pct' api/coverage/coverage-summary.json)
+
+          echo "Cobertura actual: $COVERAGE%"
+          if (( $(echo "$COVERAGE < 75" | bc -l) )); then
+            echo "La cobertura de código (${COVERAGE}%) está por debajo del 75% requerido."
+            exit 1
+          fi
