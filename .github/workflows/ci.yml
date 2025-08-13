@@ -45,4 +45,3 @@ jobs:
             echo "La cobertura de código (${COVERAGE}%) está por debajo del 75% requerido."
             exit 1
           fi
-        working-directory: api
